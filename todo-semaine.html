@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ma to-do de la semaine</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{--bordeaux:#340a12;--bordeaux-deep:#1f050a;--bordeaux-clair:#4a1420;--creme:#f1e8df;--creme-soft:rgba(241,232,223,.55);--creme-faible:rgba(241,232,223,.32);--ligne:rgba(241,232,223,.16)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:transparent;height:100%}
+  body{font-family:'Cormorant Garamond',Georgia,serif;color:var(--creme);padding:2px;overflow:hidden}
+  button,input{font:inherit;color:inherit}
+  .carte{height:100%;display:flex;flex-direction:column;background:var(--bordeaux);border:1.5px solid var(--bordeaux-deep);box-shadow:inset 0 0 0 5px var(--bordeaux),inset 0 0 0 6px var(--creme-soft);border-radius:16px;padding:14px 14px 10px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px 6px}
+  h1{font-weight:600;font-size:19px;letter-spacing:.05em;white-space:nowrap}
+  .semaine{font-style:italic;font-size:13px;color:var(--creme-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grille{flex:1;min-height:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--ligne)}
+  .jour{display:flex;flex-direction:column;min-height:0;padding:5px 4px 2px}
+  .jour+.jour{border-left:1px solid var(--ligne)}
+  .jour.auj{background:rgba(241,232,223,.07)}
+  .tete{display:flex;align-items:baseline;justify-content:space-between;gap:2px;padding-bottom:3px;margin-bottom:3px;border-bottom:1px solid var(--ligne)}
+  .nom{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+  .auj .nom{font-style:italic}
+  .date{font-size:11px;color:var(--creme-soft);font-variant-numeric:tabular-nums}
+  .liste{flex:1;min-height:0;overflow-y:auto;list-style:none;scrollbar-width:none}
+  .liste::-webkit-scrollbar{display:none}
+  .tache{display:flex;align-items:flex-start;gap:4px;padding:calc(var(--t,13px)*.15) 0;font-size:var(--t,13px);line-height:calc(var(--t,13px) + 1px);cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .tache+.tache{border-top:1px solid var(--ligne)}
+  .case{flex:none;width:10px;height:10px;margin-top:2px;border:1px solid var(--creme-soft);border-radius:3px}
+  .tache.fait .case{background:var(--creme);border-color:var(--creme)}
+  .txt{flex:1;min-width:0;overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
+  .tache.fait .txt{text-decoration:line-through;color:var(--creme-faible)}
+  .suppr{flex:none;background:none;border:0;font-size:13px;line-height:14px;color:var(--creme-faible);cursor:pointer;padding:0 1px}
+  .suppr:hover,.suppr:focus-visible{color:var(--creme)}
+  .plus{flex:none;width:100%;background:none;border:0;border-top:1px solid var(--ligne);margin-top:2px;padding:2px 0 0;font-size:14px;line-height:15px;color:var(--creme-soft);cursor:pointer}
+  .plus:hover,.plus:focus-visible{color:var(--creme)}
+  .saisie{flex:none;width:100%;background:var(--bordeaux-deep);border:1px solid var(--creme-soft);border-radius:4px;padding:2px 4px;font-size:13px;margin-top:2px;outline:none}
+  footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px 0;border-top:1px solid var(--ligne)}
+  .bilan{font-style:italic;font-size:13px;color:var(--creme-soft)}
+  .nouvelle{background:none;border:1px solid var(--creme-soft);border-radius:999px;padding:2px 12px;font-style:italic;font-size:13px;cursor:pointer;white-space:nowrap}
+  .nouvelle:hover,.nouvelle:focus-visible{background:var(--bordeaux-clair)}
+  button:focus-visible,.tache:focus-visible{outline:1.5px solid var(--creme);outline-offset:1px;border-radius:4px}
+
+  /* Cadre étroit : un jour par ligne */
+  @media (max-width:420px){
+    h1{font-size:16px}
+    .grille{display:block;overflow-y:auto;scrollbar-width:none}
+    .grille::-webkit-scrollbar{display:none}
+    .jour{flex-direction:row;align-items:flex-start;gap:6px;padding:4px 2px}
+    .jour+.jour{border-left:0;border-top:1px solid var(--ligne)}
+    .tete{flex:none;width:44px;display:block;border:0;margin:0;padding:1px 0 0}
+    .date{display:none}
+    .liste{overflow:visible}
+    .plus{width:18px;border:0;margin:0;padding:0}
+    .saisie{width:110px;margin:0}
+  }
+</style>
+</head>
+<body>
+  <div class="carte">
+    <header>
+      <h1>Ma to-do de la semaine</h1>
+      <span class="semaine" id="semaine"></span>
+    </header>
+    <div class="grille" id="grille"></div>
+    <footer>
+      <span class="bilan" id="bilan"></span>
+      <button class="nouvelle" id="nouvelle" type="button">Nouvelle semaine</button>
+    </footer>
+  </div>
+<script>
+(function(){
+  var CLE='todo-semaine-v1';
+  var JOURS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  var taches=[[],[],[],[],[],[],[]];
+  var saisieOuverte=-1;
+
+  function charger(){
+    try{
+      var d=JSON.parse(localStorage.getItem(CLE));
+      if(Array.isArray(d)&&d.length===7){taches=d;}
+    }catch(e){}
+  }
+  function sauver(){
+    try{localStorage.setItem(CLE,JSON.stringify(taches));}catch(e){}
+  }
+
+  var auj=new Date();
+  var indexAuj=(auj.getDay()+6)%7;
+  var lundi=new Date(auj.getFullYear(),auj.getMonth(),auj.getDate()-indexAuj);
+  function jourDate(i){return new Date(lundi.getFullYear(),lundi.getMonth(),lundi.getDate()+i);}
+
+  (function titreSemaine(){
+    var a=lundi,b=jourDate(6);
+    var debut=a.getDate()+(a.getMonth()!==b.getMonth()?' '+MOIS[a.getMonth()]:'');
+    document.getElementById('semaine').textContent='Semaine du '+debut+' au '+b.getDate()+' '+MOIS[b.getMonth()];
+  })();
+
+  var grille=document.getElementById('grille');
+
+  function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
+
+  function dessiner(){
+    grille.textContent='';
+    var total=0,faites=0;
+    JOURS.forEach(function(nom,i){
+      var col=el('section','jour'+(i===indexAuj?' auj':''));
+      var tete=el('div','tete');
+      tete.appendChild(el('span','nom',nom));
+      tete.appendChild(el('span','date',jourDate(i).getDate()));
+      col.appendChild(tete);
+
+      var liste=el('ul','liste');
+      taches[i].forEach(function(t,k){
+        total++;if(t.fait)faites++;
+        var li=el('li','tache'+(t.fait?' fait':''));
+        li.tabIndex=0;
+        li.setAttribute('role','checkbox');
+        li.setAttribute('aria-checked',t.fait?'true':'false');
+        li.appendChild(el('span','case'));
+        li.appendChild(el('span','txt',t.txt));
+        var x=el('button','suppr','×');
+        x.type='button';
+        x.setAttribute('aria-label','Supprimer '+t.txt);
+        x.addEventListener('click',function(ev){ev.stopPropagation();taches[i].splice(k,1);sauver();dessiner();});
+        li.appendChild(x);
+        function basculer(){t.fait=!t.fait;sauver();dessiner();}
+        li.addEventListener('click',basculer);
+        li.addEventListener('keydown',function(ev){if(ev.key===' '||ev.key==='Enter'){ev.preventDefault();basculer();}});
+        liste.appendChild(li);
+      });
+      col.appendChild(liste);
+
+      if(saisieOuverte===i){
+        var champ=el('input','saisie');
+        champ.type='text';
+        champ.maxLength=60;
+        champ.setAttribute('aria-label','Nouvelle tâche pour '+nom);
+        function valider(){
+          var v=champ.value.trim();
+          if(v){taches[i].push({txt:v,fait:false});sauver();}
+        }
+        champ.addEventListener('keydown',function(ev){
+          if(ev.key==='Enter'){valider();dessiner();}
+          else if(ev.key==='Escape'){saisieOuverte=-1;dessiner();}
+        });
+        champ.addEventListener('blur',function(){valider();saisieOuverte=-1;dessiner();});
+        col.appendChild(champ);
+        setTimeout(function(){champ.focus();},0);
+      }else{
+        var plus=el('button','plus','+');
+        plus.type='button';
+        plus.setAttribute('aria-label','Ajouter une tâche '+nom);
+        plus.addEventListener('click',function(){saisieOuverte=i;dessiner();});
+        col.appendChild(plus);
+      }
+      grille.appendChild(col);
+    });
+    ajuster();
+    document.getElementById('bilan').textContent=total?faites+' sur '+total+' cette semaine':'Rien de prévu pour l’instant';
+  }
+
+  // Réduit le texte des tâches tant qu'une journée déborde, pour tout voir sans faire défiler.
+  function ajuster(){
+    var racine=document.documentElement, t=13;
+    racine.style.setProperty('--t',t+'px');
+    function deborde(){
+      if(grille.scrollHeight>grille.clientHeight+1)return true;
+      var l=grille.querySelectorAll('.liste');
+      for(var n=0;n<l.length;n++){if(l[n].scrollHeight>l[n].clientHeight+1)return true;}
+      return false;
+    }
+    while(t>8&&deborde()){t-=0.5;racine.style.setProperty('--t',t+'px');}
+  }
+  window.addEventListener('resize',ajuster);
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(ajuster);}
+
+  var bouton=document.getElementById('nouvelle'),minuterie=null;
+  bouton.addEventListener('click',function(){
+    if(minuterie){
+      clearTimeout(minuterie);minuterie=null;
+      taches=[[],[],[],[],[],[],[]];sauver();
+      bouton.textContent='Nouvelle semaine';dessiner();
+    }else{
+      bouton.textContent='Tout effacer ?';
+      minuterie=setTimeout(function(){minuterie=null;bouton.textContent='Nouvelle semaine';},3000);
+    }
+  });
+
+  charger();
+  dessiner();
+})();
+</script>
+</body>
+</html>
